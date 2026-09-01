@@ -12,30 +12,75 @@ export async function getTransactionsByPlan(planId) {
         .eq('plan_id', planId)
         .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+        throw error;
+    }
+
     return data;
 }
 
 /**
  * Registrar un nuevo ingreso o gasto.
  */
-export async function createTransaction({ planId, description, amount, type }) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Usuario no autenticado');
+export async function createTransaction({
+    planId,
+    description,
+    amount,
+    type
+}) {
+    const {
+        data: { user }
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+        throw new Error('Usuario no autenticado');
+    }
 
     const { data, error } = await supabase
         .from('transactions')
         .insert({
             plan_id: planId,
-            description,
+            description: description,
             amount: parseFloat(amount),
-            type,
-            created_by: user.id,
+            type: type,
+            created_by: user.id
         })
         .select()
         .single();
 
-    if (error) throw error;
+    if (error) {
+        throw error;
+    }
+
+    return data;
+}
+
+/**
+ * Editar una transacción existente.
+ */
+export async function updateTransaction(
+    transactionId,
+    {
+        description,
+        amount,
+        type
+    }
+) {
+    const { data, error } = await supabase
+        .from('transactions')
+        .update({
+            description: description,
+            amount: parseFloat(amount),
+            type: type
+        })
+        .eq('id', transactionId)
+        .select()
+        .single();
+
+    if (error) {
+        throw error;
+    }
+
     return data;
 }
 
@@ -48,7 +93,9 @@ export async function deleteTransaction(transactionId) {
         .delete()
         .eq('id', transactionId);
 
-    if (error) throw error;
+    if (error) {
+        throw error;
+    }
 }
 
 /**
@@ -60,19 +107,17 @@ export function subscribeToTransactions(planId, onUpdate) {
         .on(
             'postgres_changes',
             {
-                event: '*', // Escucha INSERT, UPDATE y DELETE
+                event: '*',
                 schema: 'public',
                 table: 'transactions',
-                filter: `plan_id=eq.${planId}`,
+                filter: `plan_id=eq.${planId}`
             },
             () => {
-                // Notificar al componente para volver a consultar los datos
                 onUpdate();
             }
         )
         .subscribe();
 
-    // Función de limpieza para cancelar la suscripción al desmontar
     return () => {
         supabase.removeChannel(channel);
     };
